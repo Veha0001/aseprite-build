@@ -1,10 +1,7 @@
 # Aseprite
-
-[![build](https://github.com/aseprite/aseprite/actions/workflows/build.yml/badge.svg)](https://github.com/aseprite/aseprite/actions/workflows/build.yml)
-[![Translation Status](https://hosted.weblate.org/widget/aseprite/aseprite/svg-badge.svg)](https://hosted.weblate.org/engage/aseprite/)
-[![Discourse Community](https://img.shields.io/badge/discourse-community-brightgreen.svg?style=flat)](https://community.aseprite.org/)
-[![Discord Server](https://discordapp.com/api/guilds/324979738533822464/embed.png)](https://discord.gg/Yb2CeX8)
-
+* Hey, if you're just lazy to download Visual Studio to build and use the app, you can also run this GitHub Actions workflow that will build it automatically for you!
+* [Here is the build.yml file](https://github.com/Veha0001/aseprite-build/blob/main/.github/workflows/build.yml)
+[![build](https://github.com/Veha0001/aseprite-build/actions/workflows/build.yml/badge.svg)](https://github.com/Veha0001/aseprite-build/actions/workflows/build.yml)
 ## Introduction
 
 **Aseprite** is a program to create animated sprites. Its main features are:

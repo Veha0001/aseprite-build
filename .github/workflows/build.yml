@@ -11,6 +11,10 @@ on:
         required: true
         type: boolean
 
+permissions:
+  contents: write
+  discussions: write
+  
 jobs:
   build-windows:
     runs-on: windows-2022
@@ -34,7 +38,7 @@ jobs:
           if-no-files-found: error
 
       - name: Create Archive
-        if: ${{ inputs['publish"] }}
+        if: ${{ inputs['publish'] }}
         run: 7z a r aseprite-${{ steps.build.outputs.ASEPRITE_VERSION }}.zip github/aseprite-${{ steps.build.outputs.ASEPRITE_VERSION }}/* 
       
       - name: Publish Release

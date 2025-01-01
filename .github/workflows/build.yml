@@ -39,13 +39,13 @@ jobs:
 
       - name: Create Archive
         if: ${{ inputs['publish'] }}
-        run: 7z a r aseprite-${{ steps.build.outputs.ASEPRITE_VERSION }}.zip github/aseprite-${{ steps.build.outputs.ASEPRITE_VERSION }}/* 
-      
+        run: 7z a Aseprite-${{ steps.build.outputs.ASEPRITE_VERSION }}.zip github/aseprite-${{ steps.build.outputs.ASEPRITE_VERSION }}/*
+        
       - name: Publish Release
         if: ${{ inputs['publish'] }}
         uses: softprops/action-gh-release@v2
         with:
-          files: aseprite-${{ steps.build.outputs.ASEPRITE_VERSION }}.zip
+          files: Aseprite-${{ steps.build.outputs.ASEPRITE_VERSION }}.zip
           name: Aseprite ${{ steps.build.outputs.ASEPRITE_VERSION }}
           tag_name: "ci-${{ steps.build.outputs.ASEPRITE_VERSION }}"
           body: |

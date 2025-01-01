@@ -39,7 +39,9 @@ jobs:
 
       - name: Create Archive
         if: ${{ inputs['publish'] }}
-        run: 7z a Aseprite-${{ steps.build.outputs.ASEPRITE_VERSION }}.zip github/aseprite-${{ steps.build.outputs.ASEPRITE_VERSION }}/*
+        run: |
+          cd github/aseprite-${{ steps.build.outputs.ASEPRITE_VERSION }}
+          7z a r ../../Aseprite-${{ steps.build.outputs.ASEPRITE_VERSION }}.zip *
         
       - name: Publish Release
         if: ${{ inputs['publish'] }}

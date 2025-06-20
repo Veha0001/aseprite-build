@@ -1,0 +1,79 @@
+name: build
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        required: true
+        default: "Release"
+        description: "Build event"
+        type: choice
+        options:
+          - Release
+          - RelWithDebInfo
+          - Debug
+      tag:
+        required: true
+        default: "v1.3.13"
+        type: string
+        description: "version "
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+          repository: "aseprite/aseprite"
+          ref: ${{ inputs.tag }}
+      - name: Install Dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            libpixman-1-dev libfreetype6-dev libharfbuzz-dev zlib1g-dev \
+            libx11-dev libxcursor-dev libxi-dev libgl1-mesa-dev libfontconfig1-dev
+      - name: Install Skia
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]] ; then
+            this_dir=$(cygpath "${{ github.workspace }}")
+          else
+            this_dir="${{ github.workspace }}"
+          fi
+          skia_url=$(source $this_dir/laf/misc/skia-url.sh | xargs)
+          skia_file=$(basename $skia_url)
+          curl --ssl-revoke-best-effort -L -o "$skia_file" "$skia_url"
+          unzip "$skia_file" -d skia
+      - uses: aseprite/get-ninja@main
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - name: Generating Makefiles
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "macOS" ]] ; then
+            export skia_arch=arm64
+          else
+            export skia_arch=x64
+          fi
+
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
+            -DENABLE_CCACHE=OFF \
+            -DLAF_BACKEND=$laf_backend \
+            -DSKIA_DIR=$(realpath skia) \
+            -DSKIA_LIBRARY_DIR=$(realpath skia/out/Release-$skia_arch)
+      - name: Compiling
+        shell: bash
+        run: |
+          cd build && ninja
+          echo "OS_NAME=$(uname -s)" >> $GITHUB_ENV
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Aseprite-${{ env.OS_NAME }}
+          path: build/bin

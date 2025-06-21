@@ -62,7 +62,11 @@ jobs:
         if: ${{ inputs.srcver == true }}
         shell: pwsh
         run: |
-          (Get-Content src\ver\CMakeLists.txt) -replace 'set\(VERSION ".+"\)', 'set(VERSION "${{ inputs.tag }}")' | Set-Content src\ver\CMakeLists.txt
+          (Get-Content src\ver\CMakeLists.txt) `
+            -replace 'set\(VERSION ".+"\)', `
+            "set(VERSION `"$(( '${{ inputs.tag }}' -replace '^v', '') )`")" `
+            | Set-Content src\ver\CMakeLists.txt
+          Get-Content src\ver\CMakeLists.txt
       - name: Generating Makefiles
         shell: bash
         run: |

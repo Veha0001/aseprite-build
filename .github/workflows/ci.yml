@@ -87,8 +87,14 @@ jobs:
         shell: bash
         run: |
           cd build/bin
-          shopt -s extglob
-          rm -rf !("Aseprite*"|"aseprite*"|"data")
+          find . -mindepth 1 \
+            ! -name 'data' \
+            ! -path './data/*' \
+            ! -name 'Aseprite.app' \
+            ! -path './Aseprite.app/*' \
+            ! -name 'Aseprite*' \
+            ! -name 'aseprite*' \
+            -exec rm -rf {} +
       - uses: actions/upload-artifact@v4
         with:
           name: Aseprite-${{ runner.os }}

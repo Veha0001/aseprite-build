@@ -15,7 +15,12 @@ on:
         required: true
         default: "v1.3.13"
         type: string
-        description: "version "
+        description: "version of the app"
+      srcver:
+        description: "Set src/ver with vtag"
+        required: true
+        default: true
+        type: boolean
 
 jobs:
   build:
@@ -53,6 +58,11 @@ jobs:
       - uses: aseprite/get-ninja@main
       - uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'
+      - name: Setup version
+        if: ${{ inputs.srcver == true }}
+        shell: pwsh
+        run: |
+          (Get-Content src\ver\CMakeLists.txt) -replace 'set\(VERSION ".+"\)', 'set(VERSION "${{ inputs.tag }}")' | Set-Content src\ver\CMakeLists.txt
       - name: Generating Makefiles
         shell: bash
         run: |
@@ -73,8 +83,13 @@ jobs:
         shell: bash
         run: |
           cd build && ninja
-          echo "OS_NAME=$(uname -s)" >> $GITHUB_ENV
+      - name: Prepare assets
+        shell: bash
+        run: |
+          cd build/bin
+          shopt -s extglob
+          rm -rf !("Aseprite*"|"aseprite*"|"data")
       - uses: actions/upload-artifact@v4
         with:
-          name: Aseprite-${{ env.OS_NAME }}
+          name: Aseprite-${{ runner.os }}
           path: build/bin

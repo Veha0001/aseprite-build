@@ -1,27 +1,31 @@
 name: Aseprite
 
 on:
+  schedule:
+    - cron: "0 0 */60 * *"
   workflow_dispatch:
     inputs:
       version:
         description: "Version to build, leave empty for latest"
+        default: ""
         required: false
       publish:
         description: "Publish the build as a release"
         required: true
+        default: false
         type: boolean
 
 permissions:
   contents: write
   discussions: write
-  
+
 jobs:
   build-windows:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: 'mmozeiko/aseprite-bin'
+          repository: "mmozeiko/aseprite-bin"
 
       - name: Build
         id: build
@@ -30,7 +34,7 @@ jobs:
         env:
           ASEPRITE_VERSION: ${{ github.event.inputs.version }}
 
-      - name: Upload Artificial 
+      - name: Upload Artificial
         uses: actions/upload-artifact@v4
         with:
           name: Aseprite ${{ steps.build.outputs.ASEPRITE_VERSION }}
@@ -42,7 +46,7 @@ jobs:
         run: |
           cd github/aseprite-${{ steps.build.outputs.ASEPRITE_VERSION }}
           7z a ../../Aseprite-${{ steps.build.outputs.ASEPRITE_VERSION }}.zip *
-        
+
       - name: Publish Release
         if: ${{ inputs['publish'] }}
         uses: softprops/action-gh-release@v2
@@ -52,19 +56,19 @@ jobs:
           tag_name: "ci-${{ steps.build.outputs.ASEPRITE_VERSION }}"
           body: |
             # Aseprite Custom Build Release
-            
+
             ## Disclaimer
             This custom build of Aseprite is provided **for personal use only**. Aseprite is a proprietary software developed and maintained by [David Capello](https://aseprite.org/), and this repository is not affiliated with the official Aseprite project.
-            
+
             **You are responsible for ensuring that you comply with the [Aseprite End-User License Agreement (EULA)](https://github.com/aseprite/aseprite/blob/main/EULA.txt) and all applicable laws before using this software.**
-            
+
             ### Important Notes
             - **Do not redistribute** this build or any modifications based on this project in violation of the Aseprite EULA.
             - Purchasing an official Aseprite license from the [Aseprite store](https://aseprite.org/) is required to legally use Aseprite.
-            
+
             ## License
             This repository contains the build scripts and instructions for compiling Aseprite from source. **It does not include any copyrighted assets or precompiled binaries from the official Aseprite project.** For more information, refer to the [Aseprite EULA](https://github.com/aseprite/aseprite/blob/main/EULA.txt) and [official repository](https://github.com/aseprite/aseprite).
-            
+
             ---
-            
+
             **Disclaimer:** This custom build is offered **as-is** without any warranty or official support. Please ensure that you have an official Aseprite license for legal usage.

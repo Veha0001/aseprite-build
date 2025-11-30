@@ -178,7 +178,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Aseprite-${{ matrix.os }}-${{ env.ASEPRITE_TAG }}
+          name: ${{ runner.os }}-Aseprite-${{ env.ASEPRITE_TAG }}
           path: aseprite-build/bin
 
       - name: Record built release

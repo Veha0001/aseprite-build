@@ -1,4 +1,9 @@
 name: Build App
+
+# Allow the workflow to commit the .last_built_release file back to the repo
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
     inputs:
@@ -12,15 +17,18 @@ on:
           - RelWithDebInfo
           - Debug
       tag:
-        required: true
-        default: "v1.3.13"
+        required: false
+        default: ""
         type: string
-        description: "version of the app"
+        description: "version of the app (leave empty to auto-detect latest aseprite release)"
       srcver:
         description: "Set src/ver with vtag"
         required: true
         default: true
         type: boolean
+  # run every 10 days
+  schedule:
+    - cron: '0 0 */10 * *'
 
 jobs:
   build:
@@ -29,12 +37,59 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout workflow repo
+        uses: actions/checkout@v4
         with:
-          submodules: "recursive"
+          fetch-depth: 0
+
+      - name: Determine aseprite tag to build
+        id: determine_tag
+        shell: bash
+        env:
+          GITHUB_API: "https://api.github.com/repos/aseprite/aseprite/releases/latest"
+        run: |
+          # If a tag was provided via workflow_dispatch input, use it.
+          # For scheduled runs or empty input, fetch latest release from aseprite/aseprite.
+          if [ -n "${{ inputs.tag }}" ]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag=$(curl -s "$GITHUB_API" | sed -n 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p')
+          fi
+
+          if [ -z "$tag" ]; then
+            echo "Failed to determine tag"; exit 1
+          fi
+
+          echo "Detected tag: $tag"
+          echo "aseprite_tag=$tag" >> $GITHUB_OUTPUT
+          echo "ASEPRITE_TAG=$tag" >> $GITHUB_ENV
+
+      - name: Check last built release
+        shell: bash
+        run: |
+          TAG="${{ steps.determine_tag.outputs.aseprite_tag }}"
+          if [ -f .last_built_release ]; then
+            last=$(cat .last_built_release)
+          else
+            last=""
+          fi
+          echo "Last built: '$last'  Latest: '$TAG'"
+          # For manual runs we always proceed; for scheduled runs skip if same
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ "$last" = "$TAG" ]; then
+            echo "No new release to build. Exiting."
+            exit 0
+          fi
+
+      - name: Checkout aseprite source
+        uses: actions/checkout@v4
+        with:
           repository: "aseprite/aseprite"
-          ref: ${{ inputs.tag }}
+          ref: ${{ env.ASEPRITE_TAG }}
+          submodules: "recursive"
+          path: aseprite-src
+
       - name: Install Dependencies
         if: runner.os == 'Linux'
         shell: bash
@@ -43,30 +98,44 @@ jobs:
           sudo apt-get install -y \
             libpixman-1-dev libfreetype6-dev libharfbuzz-dev zlib1g-dev \
             libx11-dev libxcursor-dev libxi-dev libgl1-mesa-dev libfontconfig1-dev
+
       - name: Install Skia
         shell: bash
         run: |
+          # aseprite source was checked out to aseprite-src
           if [[ "${{ runner.os }}" == "Windows" ]] ; then
-            this_dir=$(cygpath "${{ github.workspace }}")
+            this_dir=$(cygpath "${{ github.workspace }}/aseprite-src")
           else
-            this_dir="${{ github.workspace }}"
+            this_dir="${{ github.workspace }}/aseprite-src"
           fi
-          skia_url=$(source $this_dir/laf/misc/skia-url.sh | xargs)
-          skia_file=$(basename $skia_url)
+
+          # laf/misc/skia-url.sh is expected inside aseprite-src
+          skia_url=$(source "$this_dir/laf/misc/skia-url.sh" | xargs)
+          skia_file=$(basename "$skia_url")
           curl --ssl-revoke-best-effort -L -o "$skia_file" "$skia_url"
           unzip "$skia_file" -d skia
+
       - uses: aseprite/get-ninja@main
       - uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'
-      - name: Setup version
+
+      - name: Set version
         if: ${{ inputs.srcver == true }}
-        shell: pwsh
+        shell: bash
         run: |
-          (Get-Content src\ver\CMakeLists.txt) `
-            -replace 'set\(VERSION ".+"\)', `
-            "set(VERSION `"$(( '${{ inputs.tag }}' -replace '^v', '') )`")" `
-            | Set-Content src\ver\CMakeLists.txt
-          Get-Content src\ver\CMakeLists.txt
+          TAG="${{ env.ASEPRITE_TAG }}"
+          # remove leading v if present
+          VER="${TAG#v}"
+          TARGET_FILE="aseprite-src/src/ver/CMakeLists.txt"
+          if [ ! -f "$TARGET_FILE" ]; then
+            echo "$TARGET_FILE not found"
+            exit 1
+          fi
+          # use portable sed: create a backup (-i.bak works on both linux & mac)
+          sed -i.bak -E "s/set\\(VERSION \"[^\"]+\"\\)/set(VERSION \"${VER}\")/" "$TARGET_FILE" || true
+          echo "Updated $TARGET_FILE:"
+          cat "$TARGET_FILE"
+
       - name: Generating Makefiles
         shell: bash
         run: |
@@ -76,21 +145,27 @@ jobs:
             export skia_arch=x64
           fi
 
-          cmake -S . -B build -G Ninja \
+          cmake -S aseprite-src -B aseprite-build -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=10.9 \
             -DENABLE_CCACHE=OFF \
             -DLAF_BACKEND=skia \
             -DSKIA_DIR=$(realpath skia) \
-            -DSKIA_LIBRARY_DIR=$(realpath skia/out/Release-$skia_arch)
+            -DSKIA_LIBRARY_DIR=$(realpath skia/out/Release-$skia_arch) \
+            -DENABLE_UPDATE=OFF \
+            -DENABLE_PSD=ON \
+            -DENABLE_DESKTOP_INTEGRATION=ON \
+            -DENABLE_DEVMODE=ON
+
       - name: Compiling
         shell: bash
         run: |
-          cd build && ninja
+          cd aseprite-build && ninja
+
       - name: Prepare assets
         shell: bash
         run: |
-          cd build/bin
+          cd aseprite-build/bin
           find . -mindepth 1 \
             ! -name 'data' \
             ! -path './data/*' \
@@ -99,7 +174,19 @@ jobs:
             ! -name 'Aseprite*' \
             ! -name 'aseprite*' \
             -exec rm -rf {} +
+
       - uses: actions/upload-artifact@v4
         with:
-          name: Aseprite-${{ runner.os }}
-          path: build/bin
+          name: Aseprite-${{ matrix.os }}-${{ env.ASEPRITE_TAG }}
+          path: aseprite-build/bin
+
+      - name: Record built release
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          echo "${{ env.ASEPRITE_TAG }}" > .last_built_release
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .last_built_release
+          git commit -m "Record built aseprite release ${{ env.ASEPRITE_TAG }}" || echo "No changes to commit"
+          git push

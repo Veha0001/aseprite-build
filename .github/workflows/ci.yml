@@ -1,7 +1,6 @@
 # yamllint disable-file
 name: CI
 
-# Allow the workflow to commit the .last_built_release file back to the repo
 permissions:
   contents: write
 
@@ -183,7 +182,7 @@ jobs:
 
       - uses: actions/upload-artifact@v6
         with:
-          name: ${{ runner.os }}-Aseprite-${{ env.ASEPRITE_TAG }}
+          name: Aseprite_${{ env.ASEPRITE_TAG }}-${{ runner.os }}_${{ runner.arch }}
           path: aseprite-build/bin
     outputs:
       aseprite_tag: ${{ steps.determine_tag.outputs.aseprite_tag }}
@@ -202,7 +201,6 @@ jobs:
         shell: bash
         run: |
           TAG="${{ needs.build.outputs.aseprite_tag }}"
-          # fallback to "unknown" if empty
           if [ -z "$TAG" ]; then
             TAG="main"
           fi

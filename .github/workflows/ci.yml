@@ -145,18 +145,20 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "macOS" ]] ; then
-            export skia_arch=arm64
+            export SKIA_ARCH=arm64
           else
-            export skia_arch=x64
+            export SKIA_ARCH=x64
           fi
 
+          BUILD_TYPE="${{ inputs.build_type:-Release }}"
+
           cmake -S aseprite-src -B aseprite-build -G Ninja \
-            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
+            -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=10.14 \
             -DENABLE_CCACHE=OFF \
             -DLAF_BACKEND=skia \
             -DSKIA_DIR=$(realpath skia) \
-            -DSKIA_LIBRARY_DIR=$(realpath skia/out/Release-$skia_arch) \
+            -DSKIA_LIBRARY_DIR=$(realpath skia/out/Release-$SKIA_ARCH) \
             -DENABLE_UPDATE=OFF \
             -DENABLE_PSD=ON \
             -DENABLE_DESKTOP_INTEGRATION=ON \

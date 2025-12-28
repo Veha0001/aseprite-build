@@ -185,6 +185,8 @@ jobs:
         with:
           name: ${{ runner.os }}-Aseprite-${{ env.ASEPRITE_TAG }}
           path: aseprite-build/bin
+    outputs:
+      aseprite_tag: ${{ steps.determine_tag.outputs.aseprite_tag }}
 
   record_ver:
     name: Record Version
@@ -199,9 +201,14 @@ jobs:
       - name: Record built release
         shell: bash
         run: |
-          echo "tag=${{ env.ASEPRITE_TAG }}" > version.ini
+          TAG="${{ needs.build.outputs.aseprite_tag }}"
+          # fallback to "unknown" if empty
+          if [ -z "$TAG" ]; then
+            TAG="main"
+          fi
+          echo "tag=$TAG" > version.ini
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add version.ini
-          git commit -m "Record(built): ${{ env.ASEPRITE_TAG }}" || echo "No changes to commit"
+          git commit -m "Record(built): $TAG" || echo "No changes to commit"
           git push

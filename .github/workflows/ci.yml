@@ -149,9 +149,11 @@ jobs:
           else
             export SKIA_ARCH=x64
           fi
-
-          BUILD_TYPE="${{ inputs.build_type:-Release }}"
-
+          if [ -z "${{ inputs.build_type }}" ]; then
+            BUILD_TYPE="Release"
+          else
+            BUILD_TYPE="${{ inputs.build_type }}"
+          fi
           cmake -S aseprite-src -B aseprite-build -G Ninja \
             -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=10.14 \

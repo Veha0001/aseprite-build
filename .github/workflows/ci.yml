@@ -46,18 +46,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine aseprite tag to build
+      - name: Install jq
+        uses: dcarbone/install-jq-action@v3.2.0
+
+      - name: Determine Aseprite tag to build
         id: determine_tag
         shell: bash
         env:
           GITHUB_API: "https://api.github.com/repos/aseprite/aseprite/releases/latest"
         run: |
-          # If a tag was provided via workflow_dispatch input, use it.
-          # For scheduled runs or empty input, fetch latest release from aseprite/aseprite.
+          # Use workflow_dispatch input if provided
           if [ -n "${{ inputs.tag }}" ]; then
             tag="${{ inputs.tag }}"
           else
-            tag=$(curl -s "$GITHUB_API" | sed -n 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p')
+            # Fetch latest release JSON
+            tag=$(curl -s "$GITHUB_API" | jq -r ".tag_name")
           fi
 
           if [ -z "$tag" ]; then
@@ -197,9 +200,8 @@ jobs:
         shell: bash
         run: |
           echo "tag=${{ env.ASEPRITE_TAG }}" > version.ini
-          set TAG="${{ env.ASEPRITE_TAG }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add version.ini
-          git commit -m "Record built: tag [$TAG](https://github.com/aseprite/aseprite/tree/$TAG)" || echo "No changes to commit"
+          git commit -m "Record(built): ${{ env.ASEPRITE_TAG }}" || echo "No changes to commit"
           git push

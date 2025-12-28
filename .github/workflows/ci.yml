@@ -1,4 +1,5 @@
-name: Build App
+# yamllint disable-file
+name: CI
 
 # Allow the workflow to commit the .last_built_release file back to the repo
 permissions:
@@ -28,7 +29,8 @@ on:
         type: boolean
   # run every 10 days
   schedule:
-    - cron: '0 0 */10 * *'
+    - cron: "0 0 */10 * *"
+  push:
 
 jobs:
   build:
@@ -40,7 +42,7 @@ jobs:
 
     steps:
       - name: Checkout workflow repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -70,8 +72,8 @@ jobs:
         shell: bash
         run: |
           TAG="${{ steps.determine_tag.outputs.aseprite_tag }}"
-          if [ -f .last_built_release ]; then
-            last=$(cat .last_built_release)
+          if [ -f "version.ini" ]; then
+            last=$(sed -n 's/^tag=//p' version.ini)
           else
             last=""
           fi
@@ -83,7 +85,7 @@ jobs:
           fi
 
       - name: Checkout aseprite source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: "aseprite/aseprite"
           ref: ${{ env.ASEPRITE_TAG }}
@@ -176,18 +178,28 @@ jobs:
             ! -name 'aseprite*' \
             -exec rm -rf {} +
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: ${{ runner.os }}-Aseprite-${{ env.ASEPRITE_TAG }}
           path: aseprite-build/bin
 
+  record_ver:
+    name: Record Version
+    needs: [build]
+    if: ${{ github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
       - name: Record built release
-        if: ${{ github.event_name != 'workflow_dispatch' }}
         shell: bash
         run: |
-          echo "${{ env.ASEPRITE_TAG }}" > .last_built_release
+          echo "tag=${{ env.ASEPRITE_TAG }}" > version.ini
+          set TAG="${{ env.ASEPRITE_TAG }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .last_built_release
-          git commit -m "Record built aseprite release ${{ env.ASEPRITE_TAG }}" || echo "No changes to commit"
+          git add version.ini
+          git commit -m "Record built: tag [$TAG](https://github.com/aseprite/aseprite/tree/$TAG)" || echo "No changes to commit"
           git push

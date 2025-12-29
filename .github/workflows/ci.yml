@@ -33,13 +33,11 @@ on:
 
 jobs:
   build_win:
-    runs-on: windows-latest
-    steps:
-      - name: Run build scripted
-        uses: veha0001/aseprite-build/.github/workflows/build.yml@main
-        with:
-          version: ""
-          publish: false
+    uses: veha0001/aseprite-build/.github/workflows/build.yml@main
+    with:
+      version: ""
+      publish: false
+
   build:
     runs-on: ${{ matrix.os }}
     strategy:

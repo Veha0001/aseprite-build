@@ -4,6 +4,18 @@ name: Aseprite
 on:
   schedule:
     - cron: "0 0 */60 * *"
+  workflow_call:
+    inputs:
+      version:
+        description: "Version to build, leave empty for latest"
+        default: ""
+        type: string
+        required: false
+      publish:
+        description: "Publish the build as a release"
+        required: true
+        default: false
+        type: boolean
   workflow_dispatch:
     inputs:
       version:

@@ -3,6 +3,7 @@ name: CI
 
 permissions:
   contents: write
+  discussions: write
 
 on:
   workflow_dispatch:
